@@ -48,6 +48,14 @@
       ? `<a class="join" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">◉</span> JOIN CLASS <span aria-hidden="true">↗</span></a>`
       : `<button class="join" type="button" data-route="ajustes"><span aria-hidden="true">◉</span> JOIN CLASS <span aria-hidden="true">↗</span></button>`;
   }
+  function showInstallStatus(message, tone='') {
+    const targets=[document.getElementById('top-install-status'), document.getElementById('install-status')].filter(Boolean);
+    if (targets.length) {
+      targets.forEach(el => { el.textContent = message; el.style.color = tone==='bad' ? 'var(--bad)' : (tone==='ok' ? 'var(--ok)' : 'var(--muted)'); });
+    } else if (message) {
+      alert(message);
+    }
+  }
   function renderNavigation(which) {
     const items=[['inicio','⌂','Inicio'],['m01','▤','Práctica'],['ajustes','⚙','Ajustes']];
     navigation.innerHTML=items.map(([key,icon,title])=>`<button type="button" class="navbutton${which===key?' active':''}" data-route="${key}" aria-label="${title}" ${which===key?'aria-current="page"':''}><span class="navicon" aria-hidden="true">${icon}</span>${title}</button>`).join('');
@@ -62,7 +70,6 @@
         <h1>English B2<br>Companion</h1>
         <p>Practica gramática, identifica tus errores y llega con más confianza a cada clase.</p>
         <div class="hero-actions">${joinButton()}<button class="btn btn-light" type="button" data-route="m01">Empezar práctica ↗</button></div>
-        <div class="tiny-note">${getMeet()?'Acceso directo a tu clase de Google Meet.':'Google Meet: enlace pendiente de configuración.'}</div>
       </section>
       <div class="section-head"><div><h2>Tu avance</h2><p>Los resultados se guardan en este dispositivo.</p></div><div class="score-chip">${overall}%</div></div>
       <section class="card" aria-label="Progreso total"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><b>Respuestas correctas</b><b>${summed.done} / ${summed.total}</b></div><div class="progress-track"><span class="progress-fill" style="width:${overall}%"></span></div><div class="small" style="margin-top:10px">Meta orientativa de dominio: ${Number(cfg.passMark)||70}%</div></section>
@@ -183,8 +190,13 @@
       if(confirm('¿Quieres borrar todas tus respuestas y calificaciones guardadas de English B2?')){state={};store();route(false);}return;
     }
     if(event.target.closest('[data-install]')){
-      if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;}
-      else document.getElementById('install-status').textContent='Si no aparece la opción automática, instala desde el menú ⋮ de tu navegador Chrome.';
+      if(deferredInstallPrompt){
+        deferredInstallPrompt.prompt();
+        const result = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt=null;
+        showInstallStatus(result?.outcome==='accepted' ? '¡Listo! Se inició la instalación de la app.' : 'Puedes instalar la app más tarde desde el menú ⋮ de Chrome.', result?.outcome==='accepted' ? 'ok' : '');
+      }
+      else showInstallStatus('Si no aparece la opción automática, instala la app desde el menú ⋮ de tu navegador Chrome.','');
     }
   });
   app.addEventListener('submit',e=>{
@@ -197,8 +209,8 @@
     status.textContent='Enlace guardado en este teléfono. JOIN CLASS ya puede usarlo.';status.style.color='var(--ok)';
   });
   window.addEventListener('hashchange',()=>route());
-  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;});
-  window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;});
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;showInstallStatus('La app está lista para instalarse en este dispositivo.','ok');});
+  window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;showInstallStatus('Aplicación instalada correctamente.','ok');});
   if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
   route();
 })();
