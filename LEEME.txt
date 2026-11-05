@@ -1,0 +1,45 @@
+V.I.V.A. ACADEMY — ENGLISH B2 COMPANION (versión base 2 — JOIN CLASS configurado)
+=========================================================
+
+CONTENIDO
+- index.html: interfaz adaptable a teléfono y computadora
+- app.js: navegación, autocorrección, guardado de progreso e instalación
+- config.js: ajustes generales y enlace de Google Meet
+- m01.js: módulo B2 de demostración, con ejercicios ORIGINALES (no del libro)
+- manifest.json / sw.js / icon-192.png / icon-512.png: aplicación instalable/offline
+
+ENLACE DE GOOGLE MEET YA CONFIGURADO
+- JOIN CLASS abre https://meet.google.com/xkk-sggt-xhc
+- No es necesario editar config.js: el mismo enlace se aplica a todas las alumnas.
+- La reunión requiere conexión a internet y permiso del organizador si corresponde.
+
+CÓMO PUBLICAR DESDE EL CELULAR
+1. Extrae el ZIP. Sube los 9 archivos directamente a la raíz del repositorio GitHub.
+   No necesitas crear carpetas.
+2. Activa GitHub Pages: Settings > Pages > Deploy from a branch,
+   Branch: main, Folder: /(root).
+3. Abre el enlace publicado con Chrome y selecciona ⋮ > Instalar aplicación
+   (o Añadir a pantalla de inicio).
+4. Comparte el enlace de GitHub Pages con tus alumnas.
+5. Si ya habías publicado una versión previa, sustituye los archivos, incluido
+   sw.js, para actualizar el acceso JOIN CLASS. En caso de ver un enlace distinto,
+   entra en Ajustes y borra cualquier enlace de Meet guardado solo en ese teléfono.
+
+CALIFICACIONES Y APRENDIZAJE
+- Puntuación = respuestas correctas por ejercicio, mejor resultado conservado.
+- Consultar respuestas NO otorga puntos en esa ronda.
+- "Nueva práctica" permite repetir los ejercicios.
+- Los datos permanecen exclusivamente en localStorage de ese navegador.
+- No hay usuarios ni panel docente; es una versión sin servidor.
+
+CONTENIDOS
+- m01.js es una DEMO ORIGINAL de 27 preguntas para probar la aplicación.
+- No se recibió un libro B2 ni capturas de sus ejercicios; falta adaptarlo.
+- Para añadir m02.js, crear el archivo similar a m01.js y añadir
+  <script src="m02.js"></script> ANTES de <script src="app.js"></script>
+  dentro de index.html. Si cambias archivos, sube la versión nueva también.
+- Después de una actualización importante, incrementa CACHE_NAME en sw.js.
+
+NOTA
+Los iconos son provisionales, tipográficos, porque el logo y Nuri no
+se adjuntaron en esta conversación. Pueden sustituirse conservando los nombres.
