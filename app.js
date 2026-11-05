@@ -24,12 +24,13 @@
     if (!state[id][exid].drafts) state[id][exid].drafts = {};
     return state[id][exid];
   };
-  const totalQuestions = m => m.exercises.reduce((n,ex) => n+ex.questions.length,0);
+  const autoQuestions = ex => ex.questions.filter(q => q.type !== 'open');
+  const totalQuestions = m => m.exercises.reduce((n,ex) => n + autoQuestions(ex).length,0);
   const getProgress = (id) => {
     const m=getModule(id);
     if(!m) return {correct:0,total:0,percent:0};
     const total=totalQuestions(m);
-    const correct=m.exercises.reduce((sum,ex)=>sum+Math.min(ex.questions.length,Math.max(0,Number(state[id]?.[ex.id]?.best)||0)),0);
+    const correct=m.exercises.reduce((sum,ex)=>sum+Math.min(autoQuestions(ex).length,Math.max(0,Number(state[id]?.[ex.id]?.best)||0)),0);
     return {correct,total,percent:total?Math.round(correct/total*100):0};
   };
 
@@ -63,6 +64,7 @@
   function renderHome(){
     const ids=Object.keys(modules).sort();
     const summed=ids.reduce((sum,id)=>{const p=getProgress(id);return {done:sum.done+p.correct,total:sum.total+p.total};},{done:0,total:0});
+    const open=ids.reduce((sum,id)=>{const m=modules[id];let total=0,written=0;m.exercises.forEach(ex=>ex.questions.filter(q=>q.type==='open').forEach(q=>{total++;if(String(state[id]?.[ex.id]?.drafts?.[q.id]??'').trim())written++;}));return {total:sum.total+total,written:sum.written+written};},{total:0,written:0});
     const overall=summed.total?Math.round(summed.done/summed.total*100):0;
     app.innerHTML=`
       <section class="hero">
@@ -72,13 +74,13 @@
         <div class="hero-actions">${joinButton()}<button class="btn btn-light" type="button" data-route="m01">Empezar práctica ↗</button></div>
       </section>
       <div class="section-head"><div><h2>Tu avance</h2><p>Los resultados se guardan en este dispositivo.</p></div><div class="score-chip">${overall}%</div></div>
-      <section class="card" aria-label="Progreso total"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><b>Respuestas correctas</b><b>${summed.done} / ${summed.total}</b></div><div class="progress-track"><span class="progress-fill" style="width:${overall}%"></span></div><div class="small" style="margin-top:10px">Meta orientativa de dominio: ${Number(cfg.passMark)||70}%</div></section>
+      <section class="card" aria-label="Progreso total"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><b>Respuestas autocorregibles</b><b>${summed.done} / ${summed.total}</b></div><div class="progress-track"><span class="progress-fill" style="width:${overall}%"></span></div><div class="small" style="margin-top:10px">Meta orientativa de dominio: ${Number(cfg.passMark)||70}% · Escritura personal: ${open.written}/${open.total} respuestas guardadas (sin calificación automática)</div></section>
       <div class="section-head"><div><h2>Grammar practice</h2><p>Actividades autocorregibles por módulo.</p></div></div>
       ${ids.map(id=>{
         const m=modules[id];const p=getProgress(id);
         return `<button type="button" class="module-card" data-route="m${id}"><div class="module-top"><span class="number">${esc(id)}</span><span class="small">${esc(m.badge || 'GRAMMAR PRACTICE')}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.subtitle)}</p><div class="progress-track"><span class="progress-fill" style="width:${p.percent}%"></span></div><div class="module-bottom"><span>${p.correct} / ${p.total} correctas · ${p.percent}%</span><span>Practicar ↗</span></div></button>`;
       }).join('')}
-      <div class="notice"><b>Contenido de prueba.</b> Este primer módulo es una demostración original B2. Los ejercicios definitivos se incorporarán cuando tengamos las páginas o capturas del material de clase.</div>`;
+      <div class="notice"><b>Unidad 1 preparada.</b> Practica los ejercicios 1–10 según las páginas proporcionadas. En las actividades visuales encontrarás descripciones de las escenas; el texto de lectura está adaptado para la app.</div>`;
     renderNavigation('inicio');
   }
   function questionHTML(id,ex,q,index){
@@ -86,18 +88,24 @@
     const draft=record.drafts[q.id] ?? '';
     const contents=q.type==='choice'
       ? `<div class="choices" role="group" aria-label="Respuestas para pregunta ${index+1}">${q.options.map((opt,n)=>`<button type="button" class="choice${String(draft)===String(n)?' selected':''}" data-choice="${n}" aria-pressed="${String(draft)===String(n)}">${esc(opt)}</button>`).join('')}</div>`
+      : q.type==='open'
+      ? `<textarea class="answer-input" data-open-answer="1" rows="${Number(q.rows)||3}" style="display:block;max-width:100%;min-height:94px;resize:vertical" placeholder="${esc(q.placeholder||'Write your own answer…')}" aria-label="Respuesta personal de la pregunta ${index+1}">${esc(draft)}</textarea>`
       : `<input class="answer-input" type="text" value="${esc(draft)}" placeholder="Escribe tu respuesta..." aria-label="Respuesta de la pregunta ${index+1}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">`;
     return `<div class="question" data-question="${esc(q.id)}"><div class="question-top"><span class="qnum">${index+1}</span><div style="flex:1;min-width:0"><p class="prompt">${esc(q.prompt)}</p>${contents}<div class="q-tools"><button type="button" class="micro" data-hint="1">Ver pista</button></div><div class="helper" hidden>${esc(q.hint||'Lee con atención el contexto.')}</div><div class="feedback" aria-live="polite"></div></div></div></div>`;
   }
   function exerciseHTML(id,ex,index){
     const r=getRecord(id,ex.id);
-    return `<section class="card exercise" id="exercise-${esc(ex.id)}" data-exercise="${esc(ex.id)}"><div class="ex-head"><div><span class="small">EXERCISE ${index+1}</span><h2>${esc(ex.title)}</h2><p>${esc(ex.instruction)}</p></div><span class="excount">${ex.questions.length} pts</span></div>${ex.intro?`<div class="intro">${esc(ex.intro)}</div>`:''}${ex.questions.map((q,i)=>questionHTML(id,ex,q,i)).join('')}<div class="check-summary ${r.graded?'':'muted'}" aria-live="polite">${r.graded?(r.revealed?'Respuestas consultadas: esta ronda no suma puntos.':`Última práctica evaluada: ${r.last ?? 0} / ${ex.questions.length}`):'Completa las preguntas y comprueba tus respuestas.'}</div><div class="actions"><button class="action-primary" type="button" data-ex-action="check" ${r.graded?'disabled':''}>Comprobar</button><button class="action-quiet" type="button" data-ex-action="show">Ver respuestas</button><button class="action-quiet" type="button" data-ex-action="retry">Nueva práctica</button></div></section>`;
+    const scoreCount=autoQuestions(ex).length;
+    const openOnly=scoreCount===0;
+    const activityNumber=ex.title.split('.')[0];
+    const summary=openOnly?'Redacta tus ideas. Se guardan en este dispositivo; no se califican automáticamente.':(r.graded?(r.revealed?'Respuestas consultadas: esta ronda no suma puntos.':`Última práctica evaluada: ${r.last ?? 0} / ${scoreCount}`):'Completa las preguntas y comprueba tus respuestas.');
+    return `<section class="card exercise" id="exercise-${esc(ex.id)}" data-exercise="${esc(ex.id)}"><div class="ex-head"><div><span class="small">EXERCISE ${esc(activityNumber)}</span><h2>${esc(ex.title)}</h2><p>${esc(ex.instruction)}</p></div><span class="excount">${openOnly?'ESCRITURA':scoreCount+' pts'}</span></div>${ex.intro?`<div class="intro" style="white-space:pre-line">${esc(ex.intro)}</div>`:''}${ex.questions.map((q,i)=>questionHTML(id,ex,q,i)).join('')}<div class="check-summary ${r.graded?'':'muted'}" aria-live="polite">${summary}</div><div class="actions"><button class="action-primary" type="button" data-ex-action="check" ${r.graded&&!openOnly?'disabled':''}>${openOnly?'Guardar respuestas':'Comprobar'}</button>${openOnly?'':`<button class="action-quiet" type="button" data-ex-action="show">Ver respuestas</button>`}<button class="action-quiet" type="button" data-ex-action="retry">${openOnly?'Borrar borradores':'Nueva práctica'}</button></div></section>`;
   }
   function renderModule(id){
     const m=getModule(id);
     if(!m){location.hash='#inicio';return;}
     const p=getProgress(id);
-    app.innerHTML=`<button type="button" class="back" data-route="inicio">‹ Todos los módulos</button><section class="unit-hero"><div class="eyebrow">${esc(m.badge||'B2 GRAMMAR')}</div><h1>Module ${esc(id)}<br>${esc(m.title)}</h1><p>${esc(m.subtitle)}</p><div class="progress-track"><span class="progress-fill" style="width:${p.percent}%"></span></div><div style="font-size:12px;margin-top:10px;font-weight:800;color:#dde8f0">Tu mejor resultado: ${p.correct} / ${p.total} · ${p.percent}%</div></section><section class="card lesson"><div class="lesson-title">◈ Grammar focus</div><p>${esc(m.lesson||'Practica cada estructura con atención.')}</p>${m.lessons?.length?`<div class="lesson-grid">${m.lessons.map(l=>`<div class="lesson-mini"><strong>${esc(l.term)}</strong>${esc(l.description)}</div>`).join('')}</div>`:''}</section>${m.exercises.map((ex,i)=>exerciseHTML(id,ex,i)).join('')}<p class="threshold">Consejo: consulta las respuestas después de intentar resolver las preguntas. Si las revelas, esa ronda no sumará puntos al progreso.</p>`;
+    app.innerHTML=`<button type="button" class="back" data-route="inicio">‹ Todos los módulos</button><section class="unit-hero"><div class="eyebrow">${esc(m.badge||'B2 GRAMMAR')}</div><h1>Module ${esc(id)}<br>${esc(m.title)}</h1><p>${esc(m.subtitle)}</p><div class="progress-track"><span class="progress-fill" style="width:${p.percent}%"></span></div><div style="font-size:12px;margin-top:10px;font-weight:800;color:#dde8f0">Tu mejor resultado autocorregible: ${p.correct} / ${p.total} · ${p.percent}%</div></section><section class="card lesson"><div class="lesson-title">◈ Grammar focus</div><p>${esc(m.lesson||'Practica cada estructura con atención.')}</p>${m.lessons?.length?`<div class="lesson-grid">${m.lessons.map(l=>`<div class="lesson-mini"><strong>${esc(l.term)}</strong>${esc(l.description)}</div>`).join('')}</div>`:''}</section>${m.exercises.map((ex,i)=>exerciseHTML(id,ex,i)).join('')}<p class="threshold">Consejo: los ejercicios autocorregibles suman puntos; las redacciones personales se guardan sin calificación automática. Si revelas respuestas, esa ronda no sumará puntos.</p>`;
     renderNavigation('m01');
   }
   function renderSettings(){
@@ -121,9 +129,18 @@
   function checkExercise(card){
     const id=currentModuleId();const m=getModule(id);if(!m)return;
     const ex=m.exercises.find(e=>e.id===card.dataset.exercise);if(!ex)return;
-    const r=getRecord(id,ex.id);if(r.graded)return;
+    const r=getRecord(id,ex.id);
+    const scored=autoQuestions(ex);
+    if(!scored.length){
+      const complete=ex.questions.filter(q=>String(r.drafts[q.id]??'').trim()).length;
+      card.querySelector('.check-summary').textContent=`Tus respuestas personales están guardadas en este dispositivo (${complete}/${ex.questions.length} completadas). Revísalas con tu docente.`;
+      card.querySelector('.check-summary').classList.remove('muted');
+      store();
+      return;
+    }
+    if(r.graded)return;
     let score=0;
-    ex.questions.forEach(q=>{
+    scored.forEach(q=>{
       const el=card.querySelector(`[data-question="${q.id}"]`);
       const input=el.querySelector('.answer-input');
       const v=input ? input.value : String(r.drafts[q.id]??'');
@@ -137,7 +154,7 @@
     r.graded=true;r.last=score;
     if(!r.revealed)r.best=Math.max(Number(r.best)||0,score);
     store();
-    card.querySelector('.check-summary').textContent=(r.revealed?'Ronda de consulta: sin puntuación. ':`Resultado: ${score} / ${ex.questions.length}. `)+(score===ex.questions.length?'¡Excelente!':'Revisa las explicaciones y vuelve a intentarlo.');
+    card.querySelector('.check-summary').textContent=(r.revealed?'Ronda de consulta: sin puntuación. ':`Resultado: ${score} / ${scored.length}. `)+(score===scored.length?'¡Excelente!':'Revisa las explicaciones y vuelve a intentarlo.');
     card.querySelector('.check-summary').classList.remove('muted');
     card.querySelector('[data-ex-action="check"]').disabled=true;
   }
@@ -146,7 +163,7 @@
     const ex=m.exercises.find(e=>e.id===card.dataset.exercise);if(!ex)return;
     const r=getRecord(id,ex.id);
     r.revealed=true;r.graded=true;
-    ex.questions.forEach(q=>{
+    autoQuestions(ex).forEach(q=>{
       const el=card.querySelector(`[data-question="${q.id}"]`);
       if(q.type==='choice'){
         el.querySelectorAll('[data-choice]').forEach(b=>{const sel=Number(b.dataset.choice)===q.correct;b.classList.toggle('selected',sel);b.setAttribute('aria-pressed',sel?'true':'false');});
@@ -213,4 +230,18 @@
   window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;showInstallStatus('Aplicación instalada correctamente.','ok');});
   if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
   route();
+  // A partir de este ajuste, m02.js, m03.js, etc. se descubren solos.
+  // Basta subir cada archivo a la raíz de GitHub Pages, sin editar index.html.
+  // Los 404 de módulos que aún no existen se ignoran silenciosamente.
+  for(let number=2; number<=16; number++){
+    const script=document.createElement('script');
+    script.src='m'+String(number).padStart(2,'0')+'.js';
+    script.async=true;
+    script.onload=()=>{
+      const hash=location.hash.replace(/^#/,'');
+      if(!hash || hash==='inicio')route(false);
+    };
+    script.onerror=()=>{};
+    document.body.appendChild(script);
+  }
 })();
